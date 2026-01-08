@@ -5,7 +5,7 @@ package.domain = org.airis
 version = 0.1
 source.dir = .
 source.include_exts = py
-requirements = python3,kivy,plyer,pyjnius
+requirements = python3,kivy,plyer,pillow,tflite-runtime
 orientation = portrait
 
 android.permissions = CAMERA,RECORD_AUDIO
