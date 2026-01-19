@@ -36,34 +36,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install buildozer cython==0.29.36
 
-      - name: Install Android SDK (sdkmanager + AIDL FIX)
+      - name: Install Android SDK (sdkmanager + AIDL)
         run: |
-          # Download command line tools
           mkdir -p $HOME/android-sdk/cmdline-tools
           cd $HOME/android-sdk/cmdline-tools
-          curl -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+
+          curl -L -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip tools.zip
           mv cmdline-tools latest
 
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
           yes | sdkmanager --licenses
           sdkmanager \
             "platform-tools" \
             "platforms;android-33" \
             "build-tools;33.0.2"
-        
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/tools/bin
-          ln -s $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-                $HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
-
-          cp -r $ANDROID_HOME/* \
-                $HOME/.buildozer/android/platform/android-sdk/
-
-      - name: Verify AIDL exists
-        run: |
-          ls $HOME/.buildozer/android/platform/android-sdk/build-tools/33.0.2/aidl
 
       - name: Build APK
         run: buildozer -v android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIRIS-APK
+          path: bin/*.apk
