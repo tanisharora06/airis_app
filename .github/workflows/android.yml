@@ -9,50 +9,63 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
-      - name: Install system packages
+      - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y zip unzip git curl \
-            libffi-dev libssl-dev zlib1g-dev python3-dev build-essential wget
+          sudo apt install -y \
+            zip unzip git curl wget \
+            libffi-dev libssl-dev \
+            zlib1g-dev python3-dev \
+            build-essential
 
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           pip install buildozer cython==0.29.36
 
-      - name: Install Android SDK & Build Tools (AIDL FIX)
+      - name: Install Android SDK (CORRECT LAYOUT)
         run: |
           set -e
-          ANDROID_ROOT="$HOME/android-sdk"
-          mkdir -p "$ANDROID_ROOT/cmdline-tools"
-          cd "$ANDROID_ROOT/cmdline-tools"
-          curl -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip tools.zip
-          # move the extracted cmdline-tools directory (it creates cmdline-tools/)
-          if [ -d "cmdline-tools" ]; then
-            mv cmdline-tools latest || true
-          fi
 
-          # Use explicit paths in this step to avoid PATH propagation timing issues
-          SDKMANAGER="$ANDROID_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          export ANDROID_HOME=$HOME/android-sdk
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
 
-          # Accept licenses and install required components
-          yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip commandlinetools-linux-11076708_latest.zip
+          mv cmdline-tools latest
+
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+
+          yes | sdkmanager --licenses
+
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2" \
+            "ndk;25.2.9519653"
+
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
       - name: Build APK
-        run: buildozer -v android debug
+        run: |
+          buildozer android debug
