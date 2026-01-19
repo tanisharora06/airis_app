@@ -13,7 +13,7 @@ requirements = python3,kivy,plyer,pillow,tflite-runtime
 orientation = portrait
 
 android.permissions = CAMERA,RECORD_AUDIO
-android.bootstrap = sdl2
+p4a.bootstrap = sdl2
 android.api = 33
 android.minapi = 21
 android.ndk = 25b
