@@ -31,7 +31,7 @@ jobs:
             libffi-dev libssl-dev \
             zlib1g-dev
 
-      # 🔑 ANDROID SDK — CORRECT WAY
+
       - name: Install Android SDK (FIX sdkmanager + AIDL)
         run: |
           mkdir -p $HOME/android-sdk/cmdline-tools
@@ -62,7 +62,6 @@ jobs:
         run: |
           buildozer -v android debug
 
-      # 📦 THIS IS WHY YOU HAD NO ARTIFACT
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
