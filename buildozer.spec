@@ -1,4 +1,5 @@
 [app]
+android.sdk_path = /home/runner/android-sdk
 title = AIRIS
 package.name = airis
 package.domain = org.airis
