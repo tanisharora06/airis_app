@@ -7,11 +7,11 @@ version = 0.1
 source.dir = .
 source.include_exts = py
 
-requirements = python3,kivy,plyer,pillow,tflite-runtime
+requirements = python3,kivy,plyer
 
 orientation = portrait
 
-android.permissions = CAMERA,RECORD_AUDIO
+android.permissions = CAMERA,RECORD_AUDIO,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 android.accept_sdk_license = True
 
 android.api = 33
