@@ -2,56 +2,41 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.clock import Clock
-from kivy.utils import platform
-
-IS_ANDROID = platform == "android"
 
 
 class AIRIS(App):
     def build(self):
         layout = BoxLayout(
             orientation="vertical",
-            padding=30,
+            padding=20,
             spacing=20
         )
 
         self.label = Label(
-            text="AIRIS is running ✅",
-            font_size="22sp",
-            halign="center",
-            valign="middle"
+            text="AIRIS is running",
+            font_size="22sp"
         )
-        self.label.bind(size=self.label.setter("text_size"))
 
-        btn = Button(
-            text="Test Button",
-            size_hint=(1, 0.3)
+        button = Button(
+            text="Press Me",
+            font_size="20sp"
         )
-        btn.bind(on_press=self.on_button)
+        button.bind(on_press=self.on_button)
 
         layout.add_widget(self.label)
-        layout.add_widget(btn)
-
-        if IS_ANDROID:
-            self.request_android_permissions()
+        layout.add_widget(button)
 
         return layout
 
     def on_button(self, *args):
-        self.label.text = "Button works 🎉"
+        self.label.text = "AIRIS speaking..."
 
-    def request_android_permissions(self):
         try:
-            from android.permissions import request_permissions, Permission
-            request_permissions([
-                Permission.CAMERA,
-                Permission.RECORD_AUDIO,
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE
-            ])
+            from plyer import tts
+            tts.speak("AIRIS is now active")
         except Exception as e:
-            print("Permission error:", e)
+            self.label.text = "Text to speech failed"
+            print(e)
 
 
 if __name__ == "__main__":
