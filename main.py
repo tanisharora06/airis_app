@@ -2,6 +2,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
+from plyer import camera
 
 
 class AIRIS(App):
@@ -13,30 +14,35 @@ class AIRIS(App):
         )
 
         self.label = Label(
-            text="AIRIS is running",
+            text="AIRIS ready",
             font_size="22sp"
         )
 
         button = Button(
-            text="Press Me",
+            text="Take Photo",
             font_size="20sp"
         )
-        button.bind(on_press=self.on_button)
+        button.bind(on_press=self.take_photo)
 
         layout.add_widget(self.label)
         layout.add_widget(button)
 
         return layout
 
-    def on_button(self, *args):
-        self.label.text = "AIRIS speaking..."
-
+    def take_photo(self, *args):
         try:
-            from plyer import tts
-            tts.speak("AIRIS is now active")
+            self.label.text = "Opening camera..."
+            camera.take_picture(
+                filename="/sdcard/airis_test.jpg",
+                on_complete=self.after_photo
+            )
         except Exception as e:
-            self.label.text = "Text to speech failed"
+            self.label.text = "Camera failed"
             print(e)
+
+    def after_photo(self, path):
+        self.label.text = "Photo saved!"
+        print("Saved to:", path)
 
 
 if __name__ == "__main__":
