@@ -8,7 +8,7 @@ from kivy.utils import platform
 
 from plyer import camera, tts
 
-# Android-specific imports
+# Android-only imports (safe guarded)
 if platform == "android":
     from android.permissions import request_permissions, Permission
     from android.storage import app_storage_path
@@ -17,6 +17,8 @@ if platform == "android":
 class AIRIS(App):
 
     def build(self):
+        self.image_path = None
+
         self.layout = BoxLayout(
             orientation="vertical",
             padding=20,
@@ -28,65 +30,72 @@ class AIRIS(App):
             font_size="20sp"
         )
 
-        self.scan_button = Button(
+        self.btn = Button(
             text="Scan",
             size_hint=(1, 0.3)
         )
-        self.scan_button.bind(on_press=self.on_scan_pressed)
+        self.btn.bind(on_press=self.start_scan)
 
         self.layout.add_widget(self.status)
-        self.layout.add_widget(self.scan_button)
+        self.layout.add_widget(self.btn)
 
-        # Request permissions after UI loads
         if platform == "android":
-            Clock.schedule_once(self.request_android_permissions, 0.5)
+            Clock.schedule_once(self.request_android_permissions, 0)
 
         return self.layout
 
     def request_android_permissions(self, dt):
-        request_permissions([
-            Permission.CAMERA,
-            Permission.RECORD_AUDIO,
-            Permission.READ_EXTERNAL_STORAGE,
-            Permission.WRITE_EXTERNAL_STORAGE,
-        ])
-        self.status.text = "Permissions ready"
+        try:
+            request_permissions([
+                Permission.CAMERA,
+                Permission.RECORD_AUDIO,
+                Permission.WRITE_EXTERNAL_STORAGE,
+                Permission.READ_EXTERNAL_STORAGE
+            ])
+            self.status.text = "Permissions granted"
+        except Exception as e:
+            print("Permission error:", e)
+            self.status.text = "Permission error"
 
-    def on_scan_pressed(self, *args):
-        self.status.text = "Preparing camera"
+    def start_scan(self, *args):
+        self.status.text = "Opening camera"
         tts.speak("Opening camera")
+        Clock.schedule_once(self.open_camera, 1)
 
-        # Delay is REQUIRED on Android
-        Clock.schedule_once(self.start_camera, 1.5)
-
-    def start_camera(self, dt):
+    def open_camera(self, dt):
         try:
             if platform == "android":
                 base_path = app_storage_path()
             else:
                 base_path = os.getcwd()
 
-            image_path = os.path.join(base_path, "scan.jpg")
+            self.image_path = os.path.join(base_path, "scan.jpg")
 
-            self.status.text = "Camera open"
+            # Android camera intent (NO CALLBACK — intentional)
             camera.take_picture(
-                filename=image_path,
-                on_complete=self.after_picture
+                filename=self.image_path,
+                on_complete=None
             )
 
+            # Wait for camera app to return
+            Clock.schedule_once(self.verify_image, 4)
+
         except Exception as e:
-            print("Camera error:", e)
+            print("Camera launch error:", e)
             self.status.text = "Camera failed"
             tts.speak("Camera failed")
 
-    def after_picture(self, image_path):
-        if not image_path:
-            self.status.text = "No image captured"
-            tts.speak("No image captured")
-            return
-
-        self.status.text = "Image captured"
-        tts.speak("Image captured successfully")
+    def verify_image(self, dt):
+        try:
+            if self.image_path and os.path.exists(self.image_path):
+                self.status.text = "Image captured"
+                tts.speak("Image captured successfully")
+            else:
+                self.status.text = "No image captured"
+                tts.speak("Camera closed without image")
+        except Exception as e:
+            print("Verification error:", e)
+            self.status.text = "Image check failed"
 
 
 if __name__ == "__main__":
