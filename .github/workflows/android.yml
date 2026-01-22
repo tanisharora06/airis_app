@@ -1,44 +1,59 @@
-name: Build Android APK
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.utils import platform
 
-on:
-  push:
-    branches: [ main ]
+# Android-only imports (SAFE)
+if platform == "android":
+    from android.permissions import request_permissions, Permission
+    from jnius import autoclass
 
-jobs:
-  build:
-    runs-on: ubuntu-22.04
 
-    steps:
-      - uses: actions/checkout@v4
+class AIRIS(App):
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+    def build(self):
+        layout = BoxLayout(
+            orientation="vertical",
+            padding=20,
+            spacing=20
+        )
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+        self.label = Label(
+            text="AIRIS ready",
+            font_size="22sp"
+        )
 
-      - name: Install system packages
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            git zip unzip curl \
-            libffi-dev libssl-dev zlib1g-dev
+        btn = Button(
+            text="Open Camera",
+            size_hint=(1, 0.3)
+        )
+        btn.bind(on_press=self.open_camera)
 
-      - name: Install Buildozer
-        run: |
-          python -m pip install --upgrade pip
-          pip install buildozer cython==0.29.36
+        layout.add_widget(self.label)
+        layout.add_widget(btn)
 
-      - name: Build APK
-        run: buildozer -v android debug
+        # Request permission once app loads
+        if platform == "android":
+            request_permissions([Permission.CAMERA])
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: airis-apk
-          path: bin/*.apk
+        return layout
+
+    def open_camera(self, *args):
+        if platform != "android":
+            self.label.text = "Camera only works on Android"
+            return
+
+        self.label.text = "Opening camera..."
+
+        PythonActivity = autoclass("org.kivy.android.PythonActivity")
+        Intent = autoclass("android.content.Intent")
+        MediaStore = autoclass("android.provider.MediaStore")
+
+        activity = PythonActivity.mActivity
+        intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        activity.startActivity(intent)
+
+
+if __name__ == "__main__":
+    AIRIS().run()
