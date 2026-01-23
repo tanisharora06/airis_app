@@ -1,53 +1,52 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.clock import Clock
+from kivy.uix.label import Label
+from kivy.utils import platform
 
-from plyer import camera
-import time
+if platform == "android":
+    from android.permissions import request_permissions, Permission
+    from jnius import autoclass
 
 
-class AIRISApp(App):
-
+class AIRIS(App):
     def build(self):
-        self.layout = BoxLayout(orientation="vertical", padding=20, spacing=20)
+        layout = BoxLayout(orientation="vertical", padding=20, spacing=20)
 
-        self.label = Label(
-            text="AIRIS Ready",
-            font_size=24
-        )
+        self.label = Label(text="AIRIS Ready", font_size="22sp")
+        btn = Button(text="Open Camera", size_hint=(1, 0.3))
+        btn.bind(on_press=self.open_camera)
 
-        self.button = Button(
-            text="Start Camera",
-            size_hint=(1, 0.3)
-        )
-        self.button.bind(on_press=self.start_camera)
+        layout.add_widget(self.label)
+        layout.add_widget(btn)
 
-        self.layout.add_widget(self.label)
-        self.layout.add_widget(self.button)
+        if platform == "android":
+            request_permissions([Permission.CAMERA])
 
-        return self.layout
+        return layout
 
-    def start_camera(self, instance):
-        self.label.text = "Opening camera..."
-        Clock.schedule_once(self.take_picture, 1)
+    def open_camera(self, *args):
+        if platform != "android":
+            self.label.text = "Android only"
+            return
 
-    def take_picture(self, dt):
-        filename = f"/sdcard/airis_{int(time.time())}.jpg"
+        PythonActivity = autoclass("org.kivy.android.PythonActivity")
+        Intent = autoclass("android.content.Intent")
+        MediaStore = autoclass("android.provider.MediaStore")
+        Toast = autoclass("android.widget.Toast")
 
-        try:
-            camera.take_picture(
-                filename=filename,
-                on_complete=self.on_picture_taken
-            )
-        except Exception as e:
-            self.label.text = "Camera failed"
-            print(e)
+        activity = PythonActivity.mActivity
+        intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
-    def on_picture_taken(self, filepath):
-        self.label.text = "Image captured successfully"
+        # 🔒 Critical check
+        if intent.resolveActivity(activity.getPackageManager()) is None:
+            Toast.makeText(activity, "No camera app found", Toast.LENGTH_LONG).show()
+            self.label.text = "No camera app"
+            return
+
+        Toast.makeText(activity, "Opening camera…", Toast.LENGTH_SHORT).show()
+        activity.startActivity(intent)
 
 
 if __name__ == "__main__":
-    AIRISApp().run()
+    AIRIS().run()
