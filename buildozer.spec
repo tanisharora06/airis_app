@@ -1,33 +1,20 @@
-[app]
-
+\[app]
 title = AIRIS
-
 package.name = airis
-
-package.domain = org.test
-
-source.dir = .
-
-source.include_exts = py,png,jpg,kv,atlas,tflite,txt
-
-
+package.domain = org.airis
 version = 0.1
 
+source.dir = .
+source.include_exts = py
 
-requirements = kivy,speech-recognition,plyer,tflite-runtime,pillow,numpy
+requirements = python3,kivy,plyer,pyjnius
 
-fullscreen = 0
+orientation = portrait
 
-android.permissions = CAMERA,RECORD_AUDIO,INTERNET
-
-android.api = 31
-
+android.permissions = CAMERA,RECORD_AUDIO
+android.api = 33
 android.minapi = 21
+android.ndk = 25b
+
 android.accept_sdk_license = True
-
-android.archs = arm64-v8a, armeabi-v7a
-
-android.allow_backup = True
-
-android.enable_androidx = True
-android.enable_androidx_recyclerview = True
+p4a.bootstrap = sdl2
