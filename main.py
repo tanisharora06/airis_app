@@ -6,13 +6,9 @@ from kivy.uix.camera import Camera
 from kivy.clock import Clock
 from plyer import tts
 
-import numpy as np
 from PIL import Image
-import tflite_runtime.interpreter as tflite
-
-
-MODEL_PATH = "mobilenet_v2_1.0_224.tflite"
-LABELS_PATH = "labels.txt"
+import io
+import time
 
 
 class AirisApp(App):
@@ -34,35 +30,25 @@ class AirisApp(App):
         )
         self.root.add_widget(self.camera)
 
-        btn = Button(
-            text="Scan",
+        scan_btn = Button(
+            text="Scan Automatically",
             size_hint=(1, 0.15)
         )
-        btn.bind(on_press=self.scan)
-        self.root.add_widget(btn)
+        scan_btn.bind(on_press=self.start_scan)
+        self.root.add_widget(scan_btn)
 
-        self.load_ai()
-        tts.speak("AIRIS is ready")
-
+        tts.speak("AIRIS launched successfully")
         return self.root
 
-    def load_ai(self):
-        self.interpreter = tflite.Interpreter(model_path=MODEL_PATH)
-        self.interpreter.allocate_tensors()
-        self.input_details = self.interpreter.get_input_details()
-        self.output_details = self.interpreter.get_output_details()
-
-        with open(LABELS_PATH, "r") as f:
-            self.labels = [l.strip() for l in f.readlines()]
-
-    def scan(self, instance):
-        self.status.text = "Scanning"
+    def start_scan(self, instance):
+        self.status.text = "Scanning environment"
         tts.speak("Scanning")
-        Clock.schedule_once(self.analyze, 1)
+        Clock.schedule_once(self.capture_image, 1)
 
-    def analyze(self, dt):
+    def capture_image(self, dt):
         if not self.camera.texture:
             self.status.text = "Camera error"
+            tts.speak("Camera error")
             return
 
         texture = self.camera.texture
@@ -72,25 +58,17 @@ class AirisApp(App):
             texture.pixels
         ).convert("RGB")
 
-        image = image.resize((224, 224))
-        input_data = np.expand_dims(image, axis=0).astype(np.float32) / 255.0
+        # simulate analysis
+        self.analyze_image(image)
 
-        self.interpreter.set_tensor(
-            self.input_details[0]["index"],
-            input_data
-        )
-        self.interpreter.invoke()
+    def analyze_image(self, image):
+        width, height = image.size
 
-        output = self.interpreter.get_tensor(
-            self.output_details[0]["index"]
-        )[0]
+        # very lightweight “analysis” (safe placeholder)
+        description = f"I see an image of size {width} by {height}"
 
-        top = int(np.argmax(output))
-        label = self.labels[top]
-
-        result = f"I see {label}"
-        self.status.text = result
-        tts.speak(result)
+        self.status.text = description
+        tts.speak(description)
 
 
 if __name__ == "__main__":
