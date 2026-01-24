@@ -18,8 +18,9 @@ class AirisApp(App):
         self.layout = BoxLayout(orientation='vertical')
 
         self.status = Label(
-            text="AIRIS starting…",
-            size_hint=(1, 0.15)
+            text="AIRIS initializing...",
+            size_hint=(1, 0.15),
+            font_size='18sp'
         )
         self.layout.add_widget(self.status)
 
@@ -30,23 +31,30 @@ class AirisApp(App):
         )
         self.layout.add_widget(self.camera)
 
-        Clock.schedule_once(self.on_startup, 2)
+        Clock.schedule_once(self.start_scan, 2)
         return self.layout
 
-    def on_startup(self, dt):
-        self.status.text = "Camera ready. Capturing image."
-        tts.speak("Camera ready")
+    def start_scan(self, dt):
+        self.status.text = "Camera ready. Scanning environment."
+        tts.speak("Scanning environment")
 
         Clock.schedule_once(self.capture_image, 2)
 
     def capture_image(self, dt):
         if not self.camera.texture:
-            self.status.text = "Camera failed"
-            tts.speak("Camera failed")
+            self.status.text = "Camera error"
+            tts.speak("Camera error")
             return
 
-        self.status.text = "Image captured"
+        self.status.text = "Image captured. Analyzing."
         tts.speak("Image captured")
+
+        Clock.schedule_once(self.fake_ai_result, 2)
+
+    def fake_ai_result(self, dt):
+        result = "Detected object: chair"
+        self.status.text = result
+        tts.speak(result)
 
 
 if __name__ == "__main__":
