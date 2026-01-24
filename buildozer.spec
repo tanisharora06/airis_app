@@ -1,4 +1,4 @@
-\[app]
+[app]
 title = AIRIS
 package.name = airis
 package.domain = org.airis
