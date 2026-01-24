@@ -1,31 +1,38 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.uix.camera import Camera
 from plyer import tts
+from kivy.clock import Clock
 
 
-class AIRIS(App):
+class AirisApp(App):
     def build(self):
-        layout = BoxLayout(orientation="vertical", padding=20, spacing=20)
+        self.layout = BoxLayout(orientation='vertical')
 
-        self.label = Label(
-            text="AIRIS Loaded Successfully",
-            font_size="22sp"
+        # Camera auto-start
+        self.camera = Camera(
+            play=True,
+            resolution=(640, 480),
+            size_hint=(1, 0.85)
         )
+        self.layout.add_widget(self.camera)
 
-        speak_btn = Button(text="Test Speak")
-        speak_btn.bind(on_press=self.speak)
+        # Status label
+        self.status = Label(
+            text="Camera is running",
+            size_hint=(1, 0.15)
+        )
+        self.layout.add_widget(self.status)
 
-        layout.add_widget(self.label)
-        layout.add_widget(speak_btn)
+        # Speak AFTER app loads (important)
+        Clock.schedule_once(self.say_ready, 1)
 
-        return layout
+        return self.layout
 
-    def speak(self, *args):
-        self.label.text = "Speaking works"
-        tts.speak("AIRIS is working correctly")
+    def say_ready(self, dt):
+        tts.speak("Camera is ready")
 
 
 if __name__ == "__main__":
-    AIRIS().run()
+    AirisApp().run()
