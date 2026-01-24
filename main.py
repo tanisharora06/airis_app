@@ -6,7 +6,14 @@ from kivy.uix.camera import Camera
 from kivy.clock import Clock
 from plyer import tts
 from android.permissions import request_permissions, Permission
-from random import choice
+
+import numpy as np
+from PIL import Image
+import tflite_runtime.interpreter as tflite
+
+
+MODEL_PATH = "mobilenet_v2_1.0_224.tflite"
+LABELS_PATH = "labels.txt"
 
 
 class AirisApp(App):
@@ -39,19 +46,23 @@ class AirisApp(App):
         self.capture_btn.bind(on_press=self.capture)
         controls.add_widget(self.capture_btn)
 
-        self.auto_btn = Button(text="Auto Scan")
-        self.auto_btn.bind(on_press=self.toggle_auto_scan)
-        controls.add_widget(self.auto_btn)
-
-        self.voice_btn = Button(text="Voice Command")
-        self.voice_btn.bind(on_press=self.voice_command)
-        controls.add_widget(self.voice_btn)
-
         self.root.add_widget(controls)
 
-        self.auto_event = None
-        tts.speak("AIRIS is ready")
+        self.load_ai()
+        tts.speak("AIRIS ready with real AI")
         return self.root
+
+    # ---------- AI SETUP ----------
+
+    def load_ai(self):
+        self.interpreter = tflite.Interpreter(model_path=MODEL_PATH)
+        self.interpreter.allocate_tensors()
+
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
+
+        with open(LABELS_PATH, "r") as f:
+            self.labels = [line.strip() for line in f.readlines()]
 
     # ---------- FEATURES ----------
 
@@ -60,57 +71,45 @@ class AirisApp(App):
         tts.speak("Capturing image")
         Clock.schedule_once(self.scan_image, 1)
 
-    def toggle_auto_scan(self, instance):
-        if self.auto_event:
-            self.auto_event.cancel()
-            self.auto_event = None
-            self.status.text = "Auto scan stopped"
-            tts.speak("Auto scan stopped")
-        else:
-            self.status.text = "Auto scan started"
-            tts.speak("Auto scan started")
-            self.auto_event = Clock.schedule_interval(self.auto_scan, 6)
-
-    def auto_scan(self, dt):
-        if not self.camera.texture:
-            self.status.text = "Camera unavailable"
-            return
-        self.status.text = "Scanning environment"
-        Clock.schedule_once(self.scan_image, 1)
-
-    def voice_command(self, instance):
-        # SAFE voice feature (Android-friendly)
-        self.status.text = "Voice command activated"
-        tts.speak("Say scan or auto scan")
-
-        # Simulated recognition (real mic processing comes later)
-        command = choice(["scan", "auto"])
-
-        if command == "scan":
-            self.capture(None)
-        elif command == "auto":
-            self.toggle_auto_scan(None)
-
     def scan_image(self, dt):
-        if not self.camera.texture:
-            self.status.text = "Capture failed"
-            tts.speak("Capture failed")
+        texture = self.camera.texture
+        if not texture:
+            self.status.text = "Camera error"
+            tts.speak("Camera error")
             return
 
-        result = self.ai_detect()
+        image = Image.frombytes(
+            "RGBA",
+            texture.size,
+            texture.pixels
+        ).convert("RGB")
+
+        image = image.resize((224, 224))
+        image_array = np.array(image, dtype=np.float32)
+        image_array = np.expand_dims(image_array, axis=0)
+        image_array = image_array / 255.0
+
+        self.interpreter.set_tensor(
+            self.input_details[0]["index"],
+            image_array
+        )
+        self.interpreter.invoke()
+
+        output = self.interpreter.get_tensor(
+            self.output_details[0]["index"]
+        )[0]
+
+        top_index = int(np.argmax(output))
+        confidence = float(output[top_index])
+
+        if confidence > 0.5:
+            label = self.labels[top_index]
+            result = f"{label} ({confidence:.2f})"
+        else:
+            result = "No clear object detected"
+
         self.status.text = result
         tts.speak(result)
-
-    def ai_detect(self):
-        # Placeholder AI (real ML plugs in HERE)
-        results = [
-            "Detected: person",
-            "Detected: chair",
-            "Detected: table",
-            "Detected: phone",
-            "Detected: bottle"
-        ]
-        return choice(results)
 
 
 if __name__ == "__main__":
