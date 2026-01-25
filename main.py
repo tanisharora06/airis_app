@@ -4,21 +4,20 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.camera import Camera
 from kivy.clock import Clock
-from plyer import tts, audio
+from plyer import tts
 
 from PIL import Image
-import os
-import tempfile
+import requests
+import io
+
+
+SERVER_URL = "https://YOUR_SERVER_URL/detect"
 
 
 class AirisApp(App):
 
     def build(self):
-        root = BoxLayout(
-            orientation="vertical",
-            padding=8,
-            spacing=8
-        )
+        root = BoxLayout(orientation="vertical", padding=8, spacing=8)
 
         self.status = Label(
             text="AIRIS ready",
@@ -30,31 +29,17 @@ class AirisApp(App):
         self.camera = Camera(
             play=True,
             resolution=(640, 480),
-            size_hint=(1, 0.65)
+            size_hint=(1, 0.7)
         )
         root.add_widget(self.camera)
 
-        buttons = BoxLayout(
-            size_hint=(1, 0.2),
-            spacing=8
-        )
-
-        scan_btn = Button(text="Scan")
+        scan_btn = Button(text="Scan", size_hint=(1, 0.15))
         scan_btn.bind(on_press=self.start_scan)
-
-        voice_btn = Button(text="Voice")
-        voice_btn.bind(on_press=self.start_voice)
-
-        buttons.add_widget(scan_btn)
-        buttons.add_widget(voice_btn)
-        root.add_widget(buttons)
-
-        self.last_result = "Nothing scanned yet"
+        root.add_widget(scan_btn)
 
         tts.speak("AIRIS is ready")
         return root
 
-    # ---------------- SCAN ----------------
     def start_scan(self, *args):
         self.status.text = "Scanning"
         tts.speak("Scanning")
@@ -73,36 +58,36 @@ class AirisApp(App):
             texture.pixels
         ).convert("RGB")
 
-        self.analyze_image(image)
+        self.send_to_ai(image)
 
-    def analyze_image(self, image):
-        w, h = image.size
-        self.last_result = f"I see an image of size {w} by {h}"
-        self.status.text = self.last_result
-        tts.speak(self.last_result)
+    def send_to_ai(self, image):
+        buf = io.BytesIO()
+        image.save(buf, format="JPEG")
+        buf.seek(0)
 
-    # ---------------- VOICE ----------------
-    def start_voice(self, *args):
-        self.status.text = "Listening"
-        tts.speak("Listening")
+        try:
+            response = requests.post(
+                SERVER_URL,
+                files={"image": buf},
+                timeout=10
+            )
 
-        self.audio_path = tempfile.mktemp(suffix=".wav")
+            data = response.json()
+            detected = data.get("detected", [])
 
-        # Record safely
-        audio.record(self.audio_path, duration=3)
+            # filter only person & chair
+            detected = [d for d in detected if d in ["person", "chair"]]
 
-        # After recording, trigger action
-        Clock.schedule_once(self.after_voice, 3.5)
+            if detected:
+                result = "Detected " + " and ".join(detected)
+            else:
+                result = "No person or chair detected"
 
-    def after_voice(self, dt):
-        self.status.text = "Voice command received"
-        tts.speak("Voice command received")
+        except Exception:
+            result = "AI server not reachable"
 
-        # Default safe action
-        self.start_scan()
-
-        if os.path.exists(self.audio_path):
-            os.remove(self.audio_path)
+        self.status.text = result
+        tts.speak(result)
 
 
 if __name__ == "__main__":
