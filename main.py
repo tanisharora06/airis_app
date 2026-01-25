@@ -12,63 +12,88 @@ import io
 import threading
 import requests
 
+from android.permissions import request_permissions, Permission
+
 SERVER_URL = "https://YOUR_SERVER_URL/detect"
 
 
 class AirisApp(App):
 
     def build(self):
-        root = BoxLayout(orientation="vertical", padding=8, spacing=8)
+        self.root = BoxLayout(
+            orientation="vertical",
+            padding=8,
+            spacing=8
+        )
 
         self.status = Label(
-            text="AIRIS ready",
+            text="Requesting permissions...",
             size_hint=(1, 0.15),
             font_size="18sp"
         )
-        root.add_widget(self.status)
+        self.root.add_widget(self.status)
+
+        self.scan_btn = Button(
+            text="Scan",
+            size_hint=(1, 0.15),
+            disabled=True
+        )
+        self.scan_btn.bind(on_press=self.start_scan)
+        self.root.add_widget(self.scan_btn)
+
+        # ASK PERMISSIONS FIRST
+        Clock.schedule_once(self.ask_permissions, 0.5)
+
+        return self.root
+
+    def ask_permissions(self, dt):
+        request_permissions(
+            [
+                Permission.CAMERA,
+                Permission.INTERNET,
+                Permission.RECORD_AUDIO
+            ],
+            self.on_permissions_result
+        )
+
+    def on_permissions_result(self, permissions, grants):
+        if all(grants):
+            Clock.schedule_once(self.init_camera, 0)
+        else:
+            self.status.text = "Permissions denied"
+
+    def init_camera(self, dt):
+        self.status.text = "AIRIS ready"
 
         self.camera = Camera(
             play=True,
             resolution=(640, 480),
             size_hint=(1, 0.7)
         )
-        root.add_widget(self.camera)
+        self.root.add_widget(self.camera, index=1)
 
-        scan_btn = Button(
-            text="Scan",
-            size_hint=(1, 0.15)
-        )
-        scan_btn.bind(on_press=self.start_scan)
-        root.add_widget(scan_btn)
+        self.scan_btn.disabled = False
 
-        Clock.schedule_once(lambda dt: self.safe_tts("AIRIS is ready"), 1)
-        return root
+        self.safe_tts("AIRIS is ready")
 
     def start_scan(self, *args):
         self.status.text = "Scanning"
         self.safe_tts("Scanning")
-
-        # let camera stabilize
         Clock.schedule_once(self.capture_image, 1.2)
 
     def capture_image(self, dt):
         if not self.camera.texture:
-            self.status.text = "Camera not ready"
-            self.safe_tts("Camera not ready")
+            self.update_result("Camera not ready")
             return
 
         try:
             texture = self.camera.texture
-            size = texture.size
-            pixels = texture.pixels
-
             image = Image.frombytes(
                 "RGBA",
-                size,
-                pixels
+                texture.size,
+                texture.pixels
             ).convert("RGB")
 
-            # run AI in background (CRITICAL)
             threading.Thread(
                 target=self.send_to_ai,
                 args=(image,),
@@ -93,7 +118,6 @@ class AirisApp(App):
             data = response.json()
             detected = data.get("detected", [])
 
-            # Only what we care about
             detected = [d for d in detected if d in ("person", "chair")]
 
             if detected:
