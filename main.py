@@ -35,8 +35,8 @@ class RecognitionListener(PythonJavaClass):
         super().__init__()
         self.app = app
 
-    @java_method("()V")
-    def onReadyForSpeech(self):
+    @java_method("(Landroid/os/Bundle;)V")
+    def onReadyForSpeech(self, _params):
         self.app.on_voice_status("Listening for command…")
 
     @java_method("()V")
@@ -67,8 +67,8 @@ class RecognitionListener(PythonJavaClass):
     def onRmsChanged(self, _rmsdB):
         pass
 
-    @java_method("(I)V")
-    def onEvent(self, _eventType):
+    @java_method("(ILandroid/os/Bundle;)V")
+    def onEvent(self, _eventType, _params):
         pass
 
 
@@ -265,13 +265,14 @@ class AirisApp(App):
         threading.Thread(target=self.capture_and_detect_once, daemon=True).start()
 
     def capture_and_detect_once(self):
-        if not self.camera.texture or not self.detector_ready:
+        if not self.detector_ready:
             return
 
         try:
-            texture = self.camera.texture
-            image = Image.frombytes("RGBA", texture.size, texture.pixels).convert("RGB")
-            image = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            image = self.snapshot_camera_image()
+            if image is None:
+                self.update_result([])
+                return
 
             capture_dir = os.path.join(App.get_running_app().user_data_dir, "captures")
             os.makedirs(capture_dir, exist_ok=True)
@@ -299,7 +300,7 @@ class AirisApp(App):
             Clock.unschedule(self.scan_once)
 
     def scan_once(self, _dt):
-        if not self.camera.texture or not self.detector_ready:
+        if not self.detector_ready:
             return
 
         self.progress.value = min(95, self.progress.value + 15)
@@ -307,9 +308,10 @@ class AirisApp(App):
 
     def detect_from_camera(self):
         try:
-            texture = self.camera.texture
-            image = Image.frombytes("RGBA", texture.size, texture.pixels).convert("RGB")
-            image = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            image = self.snapshot_camera_image()
+            if image is None:
+                self.update_result([])
+                return
 
             with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fp:
                 tmp_path = fp.name
@@ -320,6 +322,26 @@ class AirisApp(App):
             self.update_result(detections)
         except Exception:
             self.update_result([])
+
+    def snapshot_camera_image(self, timeout=1.0):
+        capture = {"image": None}
+        ready = threading.Event()
+
+        def _capture(_dt):
+            try:
+                texture = self.camera.texture
+                if texture:
+                    image = Image.frombytes("RGBA", texture.size, texture.pixels).convert("RGB")
+                    capture["image"] = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            except Exception:
+                capture["image"] = None
+            finally:
+                ready.set()
+
+        Clock.schedule_once(_capture, 0)
+        if not ready.wait(timeout):
+            return None
+        return capture["image"]
 
     def run_detector(self, image_path):
         Detector = autoclass("org.airis.Detector")
