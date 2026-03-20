@@ -1,13 +1,13 @@
 # AIRIS Android Object Detection
 
-AIRIS is a Kivy Android app that performs **on-device object detection** with a TensorFlow Lite SSD model.
+AIRIS is a Kivy Android app that performs **on-device object detection** with a TensorFlow Lite SSD model and supports **hands-free capture**.
 
-## What changed
+## Features
 
-- Real object detection now runs locally (no external server needed).
-- UI updated for clearer status, live results, and scan controls.
-- Continuous scanning mode with smoother, throttled updates and voice feedback.
-- Android build config updated to include TensorFlow Lite dependency.
+- Requests camera + microphone permission at startup.
+- Opens the camera automatically after permissions are granted.
+- Continuous object detection with spoken feedback.
+- Voice trigger phrase **"scan my surroundings"** captures a picture and analyzes it.
 
 ## Build
 
@@ -18,8 +18,10 @@ buildozer android debug
 ## Run
 
 1. Install the APK on Android.
-2. Grant camera + audio permissions.
-3. Tap **Start scan** to run live detection.
+2. Grant camera + microphone permissions.
+3. Wait for the app to say it is ready.
+4. Say **"scan my surroundings"** to capture and analyze a photo.
+5. Optional: Tap **Start scan** for continuous scanning mode.
 
 ## Model files
 
